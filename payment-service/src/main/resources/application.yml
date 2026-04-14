@@ -1,0 +1,81 @@
+payment:
+  kafka:
+    topic: payments.processing.requested
+    processing-requested-dlt-topic: payments.processing.requested.DLT
+    # Internal ledger microservice: subscribe to COMPLETED facts (outbox relay publishes here).
+    ledger-completed-topic: payments.completed
+  outbox:
+    relay-enabled: true
+    relay-interval-ms: 1000
+  actuator:
+    # Sum lag across topic partitions for spring.kafka.consumer.group-id (AdminClient poll).
+    consumer-lag-metrics: true
+    lag-poll-interval-ms: 30000
+  processing:
+    # How long PROCESSING may stay without progress before reset to PENDING + republish
+    stuck-threshold: PT5M
+    stuck-recovery-interval-ms: 60000
+
+logging:
+  level:
+    com.example.payment: INFO
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, metrics, prometheus
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-details: when_authorized
+  health:
+    livenessstate:
+      enabled: true
+    readinessstate:
+      enabled: true
+    # Set to false if Kafka may be down during deploy and you do not want readiness to fail on it.
+    kafka:
+      enabled: true
+  metrics:
+    tags:
+      application: ${spring.application.name}
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
+
+spring:
+  application:
+    name: payment-service
+  datasource:
+    url: jdbc:mysql://localhost:3306/payments
+    username: root
+    password: root
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+  jpa:
+    hibernate:
+      ddl-auto: validate
+  flyway:
+    baseline-on-migrate: true
+    # 0 so V1__create_payments runs; baseline 1 would skip V1 and break empty DBs.
+    baseline-version: 0
+  # Broker: docker compose up -d kafka (repo root docker-compose.yml)
+  kafka:
+    bootstrap-servers: localhost:9092
+    producer:
+      acks: all
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      properties:
+        spring.json.add.type.headers: false
+    consumer:
+      group-id: payment-group
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: com.example.payment
+        spring.json.value.default.type: com.example.payment.PaymentProcessingRequested

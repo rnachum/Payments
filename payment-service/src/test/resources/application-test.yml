@@ -1,0 +1,33 @@
+payment:
+  kafka:
+    topic: payments.processing.requested
+    processing-requested-dlt-topic: payments.processing.requested.DLT
+    ledger-completed-topic: payments.completed
+  processing:
+    stuck-recovery-scheduler-enabled: false
+  outbox:
+    relay-enabled: false
+  actuator:
+    consumer-lag-metrics: false
+
+management:
+  health:
+    kafka:
+      enabled: false
+
+spring:
+  task:
+    scheduling:
+      enabled: true
+  datasource:
+    url: jdbc:h2:mem:payments;MODE=MySQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+  flyway:
+    enabled: false
+  kafka:
+    bootstrap-servers: ${spring.embedded.kafka.brokers}
